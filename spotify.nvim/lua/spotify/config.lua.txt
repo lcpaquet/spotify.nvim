@@ -1,0 +1,28 @@
+local M = {}
+
+M.default_config = {
+  client_id = nil,      -- Your Spotify app client ID
+  client_secret = nil,  -- Your Spotify app client secret
+  redirect_uri = "http://localhost:8080/callback",
+  scope = "user-read-playback-state user-modify-playback-state user-read-currently-playing",
+  visualizers = {
+    volume = true,
+    progress = true,
+    cover_art = true,
+    lyrics = false
+  },
+  refresh_rate = 1,     -- Update interval in seconds
+  debug = false
+}
+
+M.config = {}
+
+function M.setup(user_config)
+  M.config = vim.tbl_deep_extend("force", M.default_config, user_config or {})
+  
+  if not M.config.client_id or not M.config.client_secret then
+    vim.notify("Spotify.nvim: client_id and client_secret are required", vim.log.levels.ERROR)
+  end
+end
+
+return M

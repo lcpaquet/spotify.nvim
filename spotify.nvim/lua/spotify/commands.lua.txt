@@ -1,0 +1,47 @@
+local client = require("spotify.client")
+local ui = require("spotify.ui")
+
+local M = {}
+
+function M.setup_commands()
+  vim.api.nvim_create_user_command("SpotifyAuth", function()
+    client.authenticate()
+  end, { desc = "Authenticate with Spotify" })
+
+  vim.api.nvim_create_user_command("SpotifyToken", function(opts)
+    if client.get_token(opts.args) then
+      vim.notify("Successfully authenticated with Spotify", vim.log.levels.INFO)
+    end
+  end, { nargs = 1, desc = "Set Spotify auth token" })
+
+  vim.api.nvim_create_user_command("SpotifyPlay", function()
+    client.play()
+  end, { desc = "Play current track" })
+
+  vim.api.nvim_create_user_command("SpotifyPause", function()
+    client.pause()
+  end, { desc = "Pause current track" })
+
+  vim.api.nvim_create_user_command("SpotifyNext", function()
+    client.next_track()
+  end, { desc = "Skip to next track" })
+
+  vim.api.nvim_create_user_command("SpotifyPrev", function()
+    client.prev_track()
+  end, { desc = "Go to previous track" })
+
+  vim.api.nvim_create_user_command("SpotifyVolume", function(opts)
+    local volume = tonumber(opts.args)
+    if volume and volume >= 0 and volume <= 100 then
+      client.set_volume(volume)
+    else
+      vim.notify("Volume must be between 0 and 100", vim.log.levels.ERROR)
+    end
+  end, { nargs = 1, desc = "Set volume (0-100)" })
+
+  vim.api.nvim_create_user_command("SpotifyUI", function()
+    ui.toggle()
+  end, { desc = "Toggle Spotify UI" })
+end
+
+return Ms

@@ -1,0 +1,25 @@
+local config = require("spotify.config")
+local commands = require("spotify.commands")
+local client = require("spotify.client")
+local ui = require("spotify.ui")
+
+local M = {}
+
+function M.setup(user_config)
+  config.setup(user_config)
+  commands.setup_commands()
+  
+  -- Set up autocommand to refresh UI when visible
+  vim.api.nvim_create_autocmd("CursorHold", {
+    callback = function()
+      if ui.win_id and vim.api.nvim_win_is_valid(ui.win_id) then
+        ui.update_display()
+      end
+    end
+  })
+end
+
+-- Expose UI toggle function
+M.toggle_ui = ui.toggle
+
+return M

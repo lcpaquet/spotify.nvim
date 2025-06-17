@@ -1,0 +1,122 @@
+local http = require("socket.http")
+local ltn12 = require("ltn12")
+local json = require("json")
+local config = require("spotify.config")
+local utils = require("spotify.utils")
+
+local M = {}
+
+M.access_token = nil
+M.refresh_token = nil
+M.token_expiry = nil
+M.device_id = nil
+
+-- Authentication functions
+function M.authenticate()
+  local auth_url = string.format(
+    "https://accounts.spotify.com/authorize?client_id=%s&response_type=code&redirect_uri=%s&scope=%s",
+    config.config.client_id,
+    config.config.redirect_uri,
+    config.config.scope
+  )
+  
+  utils.open_browser(auth_url)
+end
+
+function M.get_token(auth_code)
+  local body = string.format(
+    "grant_type=authorization_code&code=%s&redirect_uri=%s&client_id=%s&client_secret=%s",
+    auth_code,
+    config.config.redirect_uri,
+    config.config.client_id,
+    config.config.client_secret
+  )
+  
+  local response = {}
+  local res, code = http.request{
+    url = "https://accounts.spotify.com/api/token",
+    method = "POST",
+    headers = {
+      ["Content-Type"] = "application/x-www-form-urlencoded",
+      ["Content-Length"] = #body
+    },
+    source = ltn12.source.string(body),
+    sink = ltn12.sink.table(response)
+  }
+  
+  if code == 200 then
+    local data = json.decode(table.concat(response))
+    M.access_token = data.access_token
+    M.refresh_token = data.refresh_token
+    M.token_expiry = os.time() + data.expires_in
+    return true
+  else
+    vim.notify("Failed to get access token", vim.log.levels.ERROR)
+    return false
+  end
+end
+
+-- API request helper
+function M.make_request(method, endpoint, body)
+  if not M.access_token then
+    vim.notify("Not authenticated with Spotify", vim.log.levels.ERROR)
+    return nil
+  end
+  
+  local response = {}
+  local url = "https://api.spotify.com/v1" .. endpoint
+  
+  local res, code = http.request{
+    url = url,
+    method = method,
+    headers = {
+      ["Authorization"] = "Bearer " .. M.access_token,
+      ["Content-Type"] = "application/json"
+    },
+    source = body and ltn12.source.string(json.encode(body)) or nil,
+    sink = ltn12.sink.table(response)
+  }
+  
+  if code == 200 or code == 204 then
+    return json.decode(table.concat(response))
+  else
+    vim.notify("Spotify API request failed: " .. code, vim.log.levels.ERROR)
+    return nil
+  end
+end
+
+-- Player controls
+function M.play()
+  return M.make_request("PUT", "/me/player/play", {
+    device_id = M.device_id
+  })
+end
+
+function M.pause()
+  return M.make_request("PUT", "/me/player/pause", {
+    device_id = M.device_id
+  })
+end
+
+function M.next_track()
+  return M.make_request("POST", "/me/player/next", {
+    device_id = M.device_id
+  })
+end
+
+function M.prev_track()
+  return M.make_request("POST", "/me/player/previous", {
+    device_id = M.device_id
+  })
+end
+
+function M.set_volume(volume)
+  return M.make_request("PUT", "/me/player/volume?volume_percent=" .. volume)
+end
+
+-- Player state
+function M.get_current_playback()
+  return M.make_request("GET", "/me/player")
+end
+
+return M

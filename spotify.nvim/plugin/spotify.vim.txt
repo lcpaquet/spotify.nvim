@@ -1,0 +1,6 @@
+if exists('g:loaded_spotify_nvim')
+  finish
+endif
+let g:loaded_spotify_nvim = 1
+
+lua require('spotify').setup()

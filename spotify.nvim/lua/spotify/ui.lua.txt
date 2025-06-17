@@ -1,0 +1,100 @@
+local config = require("spotify.config")
+local client = require("spotify.client")
+local utils = require("spotify.utils")
+
+local M = {}
+
+M.win_id = nil
+M.buf_id = nil
+M.timer = nil
+
+function M.create_window()
+  if M.win_id and vim.api.nvim_win_is_valid(M.win_id) then
+    vim.api.nvim_win_close(M.win_id, true)
+  end
+  
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = 15
+  
+  M.buf_id = vim.api.nvim_create_buf(false, true)
+  M.win_id = vim.api.nvim_open_win(M.buf_id, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    col = math.floor((vim.o.columns - width) / 2),
+    row = math.floor((vim.o.lines - height) / 2),
+    style = "minimal",
+    border = "rounded"
+  })
+  
+  vim.api.nvim_buf_set_option(M.buf_id, "filetype", "markdown")
+  vim.api.nvim_buf_set_option(M.buf_id, "modifiable", true)
+  
+  M.update_display()
+end
+
+function M.update_display()
+  if not M.buf_id or not vim.api.nvim_buf_is_valid(M.buf_id) then
+    return
+  end
+  
+  local playback = client.get_current_playback()
+  if not playback then return end
+  
+  local lines = {}
+  
+  -- Add cover art if available
+  if config.config.visualizers.cover_art and playback.item and playback.item.album.images[1] then
+    table.insert(lines, "# Now Playing")
+    table.insert(lines, "")
+    table.insert(lines, string.format("![Cover Art](%s)", playback.item.album.images[1].url))
+    table.insert(lines, "")
+  end
+  
+  -- Add track info
+  if playback.item then
+    table.insert(lines, string.format("**%s**", playback.item.name))
+    table.insert(lines, string.format("by **%s**", utils.format_artists(playback.item.artists)))
+    table.insert(lines, string.format("on *%s*", playback.item.album.name))
+    table.insert(lines, "")
+  end
+  
+  -- Add progress bar
+  if config.config.visualizers.progress and playback.item then
+    local progress = playback.progress_ms / playback.item.duration_ms
+    local bar_width = 50
+    local filled = math.floor(bar_width * progress)
+    local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
+    table.insert(lines, string.format("%s %s / %s", 
+      bar,
+      utils.format_time(playback.progress_ms),
+      utils.format_time(playback.item.duration_ms)))
+    table.insert(lines, "")
+  end
+  
+  -- Add device info
+  if playback.device then
+    table.insert(lines, string.format("Playing on: %s", playback.device.name))
+    table.insert(lines, string.format("Volume: %d%%", playback.device.volume_percent))
+  end
+  
+  vim.api.nvim_buf_set_lines(M.buf_id, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(M.buf_id, "modifiable", false)
+end
+
+function M.toggle()
+  if M.win_id and vim.api.nvim_win_is_valid(M.win_id) then
+    vim.api.nvim_win_close(M.win_id, true)
+    M.win_id = nil
+    if M.timer then
+      M.timer:stop()
+      M.timer = nil
+    end
+  else
+    M.create_window()
+    M.timer = vim.loop.new_timer()
+    M.timer:start(0, config.config.refresh_rate * 1000, vim.schedule_wrap(M.update_display))
+  end
+end
+
+return M

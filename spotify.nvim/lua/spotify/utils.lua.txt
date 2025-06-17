@@ -1,0 +1,34 @@
+local M = {}
+
+function M.open_browser(url)
+  local cmd
+  if vim.fn.has("mac") == 1 then
+    cmd = "open"
+  elseif vim.fn.has("unix") == 1 then
+    cmd = "xdg-open"
+  elseif vim.fn.has("win32") == 1 then
+    cmd = "start"
+  else
+    vim.notify("Unable to open browser on this platform", vim.log.levels.ERROR)
+    return
+  end
+  
+  vim.fn.jobstart({cmd, url}, {detach = true})
+end
+
+function M.format_time(ms)
+  local seconds = math.floor(ms / 1000)
+  local minutes = math.floor(seconds / 60)
+  seconds = seconds % 60
+  return string.format("%d:%02d", minutes, seconds)
+end
+
+function M.format_artists(artists)
+  local names = {}
+  for _, artist in ipairs(artists) do
+    table.insert(names, artist.name)
+  end
+  return table.concat(names, ", ")
+end
+
+return M
