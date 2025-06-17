@@ -1,6 +1,6 @@
 # Spotify.nvim
 
-A Neovim plugin to control Spotify with visual feedback.
+A Neovim plugin to control Spotify with visual feedback. (still in production)
 
 ## Usage
 
@@ -20,9 +20,7 @@ A Neovim plugin to control Spotify with visual feedback.
 
 :SpotifyUI - Toggle the Spotify UI window
 
-
 ## Dependencies
-
 
 Neovim 0.7+
 
